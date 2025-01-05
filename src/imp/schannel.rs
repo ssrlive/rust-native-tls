@@ -14,7 +14,7 @@ use crate::{TlsAcceptorBuilder, TlsConnectorBuilder};
 
 const SEC_E_NO_CREDENTIALS: u32 = 0x8009030E;
 
-static PROTOCOLS: &'static [Protocol] = &[
+static PROTOCOLS: &[Protocol] = &[
     Protocol::Ssl3,
     Protocol::Tls10,
     Protocol::Tls11,
@@ -104,7 +104,7 @@ impl Identity {
         }
 
         let mut store = Memory::new()?.into_store();
-        let mut cert_iter = pem::PemBlock::new(pem).into_iter();
+        let mut cert_iter = pem::PemBlock::new(pem);
         let leaf = cert_iter.next().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -127,7 +127,7 @@ impl Identity {
             Ok(container) => container,
             Err(_) => options.new_keyset(true).acquire(type_)?,
         };
-        container.import().import_pkcs8_pem(&key)?;
+        container.import().import_pkcs8_pem(key)?;
 
         cert.set_key_prov_info()
             .container(&name)
@@ -292,10 +292,8 @@ impl TlsConnector {
         } else if self.disable_built_in_roots {
             let roots_copy = self.roots.clone();
             builder.verify_callback(move |res| {
-                if let Err(err) = res.result() {
-                    // Propagate previous error encountered during normal cert validation.
-                    return Err(err);
-                }
+                // Propagate previous error encountered during normal cert validation.
+                res.result()?;
 
                 if let Some(chain) = res.chain() {
                     if chain
@@ -472,7 +470,7 @@ mod pem {
                 Some(end) => end + begin + 1,
                 None => last,
             };
-            return Some(&self.pem_block[begin..self.cur_end].as_bytes());
+            Some(self.pem_block[begin..self.cur_end].as_bytes())
         }
     }
 

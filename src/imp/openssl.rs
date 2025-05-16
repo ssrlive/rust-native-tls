@@ -11,12 +11,15 @@ use self::openssl::ssl::{
     SslVerifyMode,
 };
 use self::openssl::x509::{store::X509StoreBuilder, X509VerifyResult, X509};
+use self::openssl_probe::ProbeResult;
 use std::error;
 use std::fmt;
 use std::io;
-use std::sync::Once;
+use std::sync::LazyLock;
 
 use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+
+static PROBE_RESULT: LazyLock<ProbeResult> = LazyLock::new(openssl_probe::probe);
 
 #[cfg(feature = "have_min_max_version")]
 fn supported_protocols(
@@ -83,11 +86,6 @@ fn supported_protocols(
     ctx.set_options(options);
 
     Ok(())
-}
-
-fn init_trust() {
-    static ONCE: Once = Once::new();
-    ONCE.call_once(openssl_probe::init_ssl_cert_env_vars);
 }
 
 #[cfg(target_os = "android")]
@@ -272,9 +270,20 @@ pub struct TlsConnector {
 
 impl TlsConnector {
     pub fn new(builder: &TlsConnectorBuilder) -> Result<TlsConnector, Error> {
-        init_trust();
-
         let mut connector = SslConnector::builder(SslMethod::tls())?;
+
+        // We need to load these separately so an error on one doesn't prevent the other from loading.
+        if let Some(cert_file) = &PROBE_RESULT.cert_file {
+            if let Err(e) = connector.load_verify_locations(Some(cert_file), None) {
+                debug!("load_verify_locations cert file error: {:?}", e);
+            }
+        }
+        if let Some(cert_dir) = &PROBE_RESULT.cert_dir {
+            if let Err(e) = connector.load_verify_locations(None, Some(cert_dir)) {
+                debug!("load_verify_locations cert dir error: {:?}", e);
+            }
+        }
+
         if let Some(ref identity) = builder.identity {
             connector.set_certificate(&identity.0.cert)?;
             connector.set_private_key(&identity.0.pkey)?;

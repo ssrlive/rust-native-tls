@@ -37,6 +37,7 @@ jobs:
         id: rust-version
       - run: cargo generate-lockfile
       - run: cargo fetch
+      - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --features vendored
 

@@ -21,7 +21,7 @@ alpn = ["security-framework/alpn"]
 have_min_max_version = []
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
-security-framework = "2.0.0"
+security-framework = "3"
 security-framework-sys = "2.0.0"
 libc = "0.2"
 

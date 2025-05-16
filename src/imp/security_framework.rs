@@ -153,7 +153,7 @@ impl Identity {
 
         let cert = items
             .certificates
-            .get(0)
+            .first()
             .ok_or_else(|| Error(base::Error::from(errSecParam)))?;
         let ident = SecIdentity::with_certificate(&[keychain], cert)?;
         Ok(Identity {

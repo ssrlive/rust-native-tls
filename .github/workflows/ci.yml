@@ -18,8 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: sfackler/actions/rustup@master
-      - uses: sfackler/actions/rustfmt@master
+      - uses: dtolnay/rust-toolchain@stable
 
   windows:
     strategy:
@@ -32,28 +31,13 @@ jobs:
     name: test-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: sfackler/actions/rustup@master
-        with:
-          version: 1.80.0
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: echo "::set-output name=version::$(rustc --version)"
         id: rust-version
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ github.run_number }}
-          restore-keys: |
-            index-${{ runner.os }}-
       - run: cargo generate-lockfile
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry/cache
-          key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo fetch
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+      - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --features vendored
 
   build_n_test_ios:
